@@ -72,6 +72,21 @@ function parseHybridWeight(value: string | undefined): number | undefined {
 }
 
 /**
+ * Parse minimum chunk length from environment variable
+ */
+function parseMinChunkLength(value: string | undefined): number | undefined {
+  if (!value) return undefined
+  const parsed = Number.parseInt(value, 10)
+  if (Number.isNaN(parsed) || parsed < 50) {
+    console.error(
+      `Invalid MIN_CHUNK_LENGTH value: "${value}". Expected integer >= 50. Using default (50).`
+    )
+    return undefined
+  }
+  return parsed
+}
+
+/**
  * Entry point - Start RAG MCP Server
  */
 async function main(): Promise<void> {
@@ -97,6 +112,12 @@ async function main(): Promise<void> {
     }
     if (hybridWeight !== undefined) {
       config.hybridWeight = hybridWeight
+    }
+
+    // Add chunker settings only if defined
+    const minChunkLength = parseMinChunkLength(process.env['MIN_CHUNK_LENGTH'])
+    if (minChunkLength !== undefined) {
+      config.minChunkLength = minChunkLength
     }
 
     console.error('Starting RAG MCP Server...')

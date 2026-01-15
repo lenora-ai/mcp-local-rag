@@ -42,6 +42,8 @@ export interface RAGServerConfig {
   grouping?: GroupingMode
   /** Hybrid search weight for BM25 (0.0 = vector only, 1.0 = BM25 only, default 0.6) */
   hybridWeight?: number
+  /** Minimum chunk length in characters (default: 50) */
+  minChunkLength?: number
 }
 
 /**
@@ -170,7 +172,10 @@ export class RAGServer {
       batchSize: 16,
       cacheDir: config.cacheDir,
     })
-    this.chunker = new SemanticChunker()
+    // Pass chunker settings only if defined
+    this.chunker = new SemanticChunker(
+      config.minChunkLength !== undefined ? { minChunkLength: config.minChunkLength } : {}
+    )
     this.parser = new DocumentParser({
       baseDir: config.baseDir,
       maxFileSize: config.maxFileSize,
@@ -583,7 +588,9 @@ export class RAGServer {
    * list_files tool handler
    * Enriches raw-data files with original source information
    */
-  async handleListFiles(): Promise<{ content: [{ type: 'text'; text: string }] }> {
+  async handleListFiles(): Promise<{
+    content: [{ type: 'text'; text: string }]
+  }> {
     try {
       const files = await this.vectorStore.listFiles()
 
