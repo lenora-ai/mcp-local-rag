@@ -142,15 +142,18 @@ export class SemanticChunker {
     // Apply Max-Min algorithm to group sentences into chunks
     const sentenceGroups = this.groupSentences(sentences, embeddings)
 
+    // Merge adjacent groups until they reach minChunkLength
+    const mergedGroups = this.mergeSmallGroups(sentenceGroups)
+
     // Convert groups to TextChunks
     const chunks: TextChunk[] = []
     let chunkIndex = 0
 
-    for (const group of sentenceGroups) {
+    for (const group of mergedGroups) {
       const chunkText = group.join(' ')
 
-      // Filter out chunks that are too short or garbage
-      if (chunkText.length >= this.config.minChunkLength && !isGarbageChunk(chunkText)) {
+      // Filter out garbage chunks (but not by length - merging handles that)
+      if (!isGarbageChunk(chunkText)) {
         chunks.push({
           text: chunkText,
           index: chunkIndex,
@@ -160,6 +163,45 @@ export class SemanticChunker {
     }
 
     return chunks
+  }
+
+  /**
+   * Merge adjacent small groups until they reach minChunkLength
+   * Preserves semantic boundaries while ensuring minimum chunk size
+   */
+  private mergeSmallGroups(groups: string[][]): string[][] {
+    if (groups.length === 0) return []
+
+    const merged: string[][] = []
+    let currentMerged: string[] = []
+
+    for (const group of groups) {
+      // Add this group's sentences to current merged group
+      currentMerged.push(...group)
+
+      // Check if merged group is large enough
+      const mergedText = currentMerged.join(' ')
+      if (mergedText.length >= this.config.minChunkLength) {
+        merged.push([...currentMerged])
+        currentMerged = []
+      }
+    }
+
+    // Handle remaining sentences
+    if (currentMerged.length > 0) {
+      if (merged.length > 0) {
+        // Append to last chunk if we have previous chunks
+        const lastChunk = merged[merged.length - 1]
+        if (lastChunk) {
+          lastChunk.push(...currentMerged)
+        }
+      } else {
+        // This is the only chunk - keep it even if small
+        merged.push(currentMerged)
+      }
+    }
+
+    return merged
   }
 
   /**
